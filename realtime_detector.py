@@ -13,11 +13,11 @@ import joblib  # For scaler
 
 from prometheus_client import start_http_server, Gauge, Counter, REGISTRY
 
-# Настройка логирования
+# Logging configuration
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- Глобальные переменные для Prometheus метрик (ИСПРАВЛЕННЫЕ ИМЕНА) ---
+# --- Global variables for Prometheus metrics (corrected names)
 PROM_LATEST_RECONSTRUCTION_ERROR_MSE = None
 PROM_IS_ANOMALY_DETECTED = None
 PROM_TOTAL_ANOMALIES_COUNT = None
@@ -31,15 +31,15 @@ class RealtimeAnomalyDetector:
         self.config_path = config_path
         self.config = self._load_config()
 
-        # Получение пути для артефактов ---
+        # Getting a pathway for artifacts ---
         base_dir = Path(__file__).resolve().parent
         artifacts_path_str = self.config.get('artifacts_dir', 'artifacts')
         artifacts_dir = base_dir / artifacts_path_str
-        logging.info(f"Используется директория для артефактов: {artifacts_dir}")
+        logging.info(f"The directory for artifacts is used: {artifacts_dir}")
 
         self.prom_url = self.config.get('prometheus_url')
         self.queries = self.config.get('queries', {})
-        # Метрики из Prometheus плюс дополнительные временные признаки
+        # Metrics from Prometheus plus additional temporary signs
         self.time_feature_names = ['day_of_week', 'hour_of_day']
         self.metric_columns_ordered = list(self.queries.keys()) + self.time_feature_names
 
@@ -64,22 +64,22 @@ class RealtimeAnomalyDetector:
         self.data_step_duration_str = rt_config.get(
             'data_step_duration', data_s_config.get('step', '30s'))
 
-        # Формируем пути к файлам внутри директории артефактов ---
+        # Form paths to files inside the artifact directory
         self.scaler_path = artifacts_dir / scaler_filename
         self.model_a_path = artifacts_dir / model_a_filename
         
         self.scaler = self._load_scaler()
-        logging.info("Загрузка модели...")
-        self.model_a = self._load_tf_model(self.model_a_path, "Модель")
+        logging.info("Load the model. . .")
+        self.model_a = self._load_tf_model(self.model_a_path, "Model")
 
         if self.scaler:
             self.num_features = self.scaler.n_features_in_
             if self.num_features != len(self.metric_columns_ordered):
                 logging.error(
-                    f"Расхождение в количестве признаков! Ожидалось {len(self.metric_columns_ordered)}, "
-                    f"в скейлере {self.num_features}.")
+                    f"Divergence in number of signs! {len(self.metric_columns_ordered)}"
+                    f"{self.num_features}.")
         else:
-            logging.error("Скейлер не загружен.")
+            logging.error("Scaler's not loaded.")
             self.num_features = len(self.metric_columns_ordered)
 
         self._setup_prometheus_metrics()
@@ -89,40 +89,40 @@ class RealtimeAnomalyDetector:
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 config_data = yaml.safe_load(f)
             logging.info(
-                f"Конфигурация успешно загружена из {self.config_path}")
+                f"Configuration successfully downloaded from {self.config_path}")
             return config_data
         except Exception as e:
             logging.error(
-                f"Ошибка загрузки конфигурации {self.config_path}: {e}", exc_info=True)
+                f"Configuration error {self.config_path}: {e}", exc_info=True)
             exit(1)
 
     def _load_scaler(self):
         if not self.scaler_path.exists():
-            logging.error(f"Файл скейлера не найден: {self.scaler_path}")
+            logging.error(f"Scaler file not found: {self.scaler_path}")
             return None
         try:
             scaler = joblib.load(self.scaler_path)
-            logging.info(f"Скейлер успешно загружен из {self.scaler_path}")
+            logging.info(f"Scaler successfully downloaded from {self.scaler_path}")
             return scaler
         except Exception as e:
             logging.error(
-                f"Ошибка загрузки скейлера из {self.scaler_path}: {e}", exc_info=True)
+                f"Error to download the scaler from {self.scaler_path}: {e}", exc_info=True)
             return None
 
     def _load_tf_model(self, model_path: Path, model_name_log: str):
         if not model_path.exists():
             logging.warning(
-                f"Файл модели '{model_name_log}' не найден: {model_path}.")
+                f"Model file'{model_name_log}' not found: {model_path}")
             return None
         try:
             model = load_model(model_path)
-            logging.info(f"Информация о {model_name_log}:")
+            logging.info(f"Information about {model_name_log}:")
             model.summary(print_fn=logging.info)
-            logging.info(f"{model_name_log} успешно загружена из {model_path}")
+            logging.info(f"{model_name_log} successfully downloaded from {model_path}")
             return model
         except Exception as e:
             logging.error(
-                f"Ошибка загрузки {model_name_log} из {model_path}: {e}", exc_info=True)
+                f"Download error {model_name_log} from {model_path}: {e}", exc_info=True)
             return None
 
     def _td_seconds(self, td_str: str) -> int:
@@ -136,24 +136,24 @@ class RealtimeAnomalyDetector:
             return int(td_str)
         except ValueError:
             logging.warning(
-                f"Не распознана длительность шага: {td_str}. Используется 30с.")
+                f"The length of the step is not recognized: {td_str}. Use 30c.")
             return 30
 
     def _fetch_data_window(self) -> pd.DataFrame | None:
         if not self.prom_url or not self.queries:
-            logging.error("URL Prometheus или запросы не определены.")
+            logging.error("URL Prometheus or requests undefined.")
             return None
         step_seconds = self._td_seconds(self.data_step_duration_str)
         window_duration_seconds = self.sequence_length * step_seconds
         now_time = datetime.now()
-        # Округляем окончание окна до ближайшей границы шага
+        # Round the end of the window to the nearest step boundary
         aligned_end_ts = int(now_time.timestamp()) // step_seconds * step_seconds
         end_time = datetime.fromtimestamp(aligned_end_ts)
         start_time_query = end_time - timedelta(
             seconds=window_duration_seconds + step_seconds * 2)
         all_metric_dfs = []
         logging.info(
-            f"Запрос данных: {start_time_query.strftime('%Y-%m-%d %H:%M:%S')} - {end_time.strftime('%Y-%m-%d %H:%M:%S')}, шаг {self.data_step_duration_str}")
+            f"Data request: {start_time_query.strftime()'%Y-%m-%d %H:%M:%S')} - {end_time.strftime('%Y-%m-%d %H:%M:%S')}, step {self.data_step_duration_str}")
         for custom_name in self.queries:
             query_string = self.queries[custom_name]
             api_url = f"{self.prom_url}/api/v1/query_range"
@@ -174,70 +174,70 @@ class RealtimeAnomalyDetector:
                             all_metric_dfs.append(df_metric)
                         else:
                             logging.warning(
-                                f"Нет значений для '{custom_name}'.")
+                                f"No meaning for'{custom_name}'.")
                             return None
                     else:
                         logging.warning(
-                            f"Пустой 'result' для '{custom_name}'.")
+                            f"Empty'result' for'{custom_name}'.")
                         return None
                 else:
                     logging.warning(
-                        f"Неуспех для '{custom_name}': {data.get('errorType', '')} {data.get('error', data.get('status'))}")
+                        f"Failure for'{custom_name}': {data.get('errorType', '')} {data.get('error', data.get('status'))}")
                     return None
             except Exception as e:
                 logging.error(
-                    f"Ошибка для '{custom_name}': {e}", exc_info=True)
+                    f"Mistake for'{custom_name}': {e}", exc_info=True)
                 return None
         if not all_metric_dfs or len(all_metric_dfs) != len(self.queries):
-            logging.warning("Не все метрики загружены.")
+            logging.warning("Not all metrics are loaded.")
             return None
         try:
             final_df = pd.concat(all_metric_dfs, axis=1, join='inner')
-            # Добавляем временные признаки
+            # Adding temporary signs
             final_df['day_of_week'] = final_df.index.dayofweek.astype(int)
             final_df['hour_of_day'] = final_df.index.hour.astype(int)
             if len(final_df) >= self.sequence_length:
                 if final_df.empty:
-                    logging.warning("Итоговый DataFrame пуст.")
+                    logging.warning("The final DataFrame is empty.")
                     return None
                 try:
                     final_df = final_df[self.metric_columns_ordered]
                 except KeyError as e:
                     logging.error(
-                        f"Ошибка порядка колонок: {e}. Ожид: {self.metric_columns_ordered}. Получ: {final_df.columns.tolist()}")
+                        f"Column order error: {e}. Waiting: {self.metric_columns_ordered}. Received: {final_df.columns.tolist()}")
                     return None
                     
                 return final_df.tail(self.sequence_length)
             else:
-                logging.warning(f"Недостаточно данных ({len(final_df)}) для посл. ({self.sequence_length}).")
+                logging.warning(f"There is not enough data ({len(final_df)}) for the message ({self.sequence_length}).")
                 if PROM_DATA_POINTS_IN_CURRENT_WINDOW:
                     PROM_DATA_POINTS_IN_CURRENT_WINDOW.set(len(final_df))
                 return None
         except Exception as e:
-            logging.error(f"Ошибка объединения DataFrame: {e}", exc_info=True)
+            logging.error(f"DataFrame Combination Error: {e}", exc_info=True)
             return None
 
     def _preprocess_and_create_sequence(self, df: pd.DataFrame) -> np.ndarray | None:
         if self.scaler is None:
-            logging.error("Скейлер не загружен.")
+            logging.error("Scaler's not loaded.")
             return None
         if df.isnull().values.any():
-            logging.warning("NaN в окне, применяем ffill().bfill()")
+            logging.warning("NaN In the window, apply ffill(.bfill()")
             df = df.sort_index().ffill().bfill()
             if df.isnull().values.any():
                 logging.error(
-                    f"NaN остались. Колонки: {df.columns[df.isnull().any()].tolist()}")
+                    f"NaN They stayed. Columns: {df.columns[df.isnull().any())].tolist()}")
                 return None
         try:
             if df[self.metric_columns_ordered].shape[1] != self.num_features:
                 logging.error(
-                    f"Ошибка признаков. Ожид: {self.num_features}, есть: {df[self.metric_columns_ordered].shape[1]}.")
+                    f"Sign error. Expectation: {self.num_features}, is: {df[self.metric_columns_ordered].shape[1]}.")
                 return None
             scaled_values = self.scaler.transform(
                 df[self.metric_columns_ordered].values)
         except Exception as e:
             logging.error(
-                f"Ошибка масштабирования: {e}. Данные (форма {df[self.metric_columns_ordered].shape}):\n{df[self.metric_columns_ordered].head(2)}")
+                f"Scaling error: {e}. Data (form {df[self.metric_columns_ordered].shape}):\n{df[self.metric_columns_ordered].head(2)}")
             return None
         return np.expand_dims(scaled_values, axis=0)
 
@@ -249,26 +249,26 @@ class RealtimeAnomalyDetector:
         model_id_label_list = []
         feature_error_label_list = ['feature_name']
         metric_definitions = {
-            'latest_reconstruction_error_mse': ('MSE ошибка реконструкции для последнего окна', model_id_label_list, Gauge),
-            'is_anomaly_detected': ('Флаг аномалии (1 если аномалия, 0 если норма)', model_id_label_list, Gauge),
-            'total_anomalies_count': ('Общее количество обнаруженных аномалий', model_id_label_list, Counter),
-            'feature_reconstruction_error_mse': ('MSE ошибка для отдельного признака в последнем окне', feature_error_label_list, Gauge),
-            'last_successful_run_timestamp_seconds': ('Timestamp последнего успешного цикла детекции', [], Gauge),
-            'data_points_in_current_window': ('Количество точек данных в текущем анализируемом окне', [], Gauge)
+            'latest_reconstruction_error_mse': ('MSE Reconstruction error for the last window', model_id_label_list, Gauge),
+            'is_anomaly_detected': ('Flag of anomaly (1 if anomaly, 0 if normal)', model_id_label_list, Gauge),
+            'total_anomalies_count': ('Total number of anomalies detected', model_id_label_list, Counter),
+            'feature_reconstruction_error_mse': ('MSE error for an individual feature in the last window', feature_error_label_list, Gauge),
+            'last_successful_run_timestamp_seconds': ('Timestamp The latest successful detection cycle', [], Gauge),
+            'data_points_in_current_window': ('Number of data points in the current analyzed window', [], Gauge)
         }
         for name_suffix, (doc, labels, metric_type) in metric_definitions.items():
             full_name = self.metrics_prefix + name_suffix
-            # Используем исправленные имена глобальных переменных
+            # Use corrected names of global variables
             global_var_name = f"PROM_{name_suffix.upper()}"
-            if globals().get(global_var_name) is not None:  # Проверяем существование и значение
+            if globals().get(global_var_name) is not None:  # Checking Existence and Meaning
                 if full_name in REGISTRY._names_to_collectors:
                     try:
                         REGISTRY.unregister(
                             REGISTRY._names_to_collectors[full_name])
-                        logging.info(f"Удалена старая метрика: {full_name}")
+                        logging.info(f"Deleted old metric: {full_name}")
                     except Exception as e:
                         logging.warning(
-                            f"Не удалось удалить старую метрику {full_name}: {e}")
+                            f"The old metric {full_name} cannot be deleted: {e}")
             current_labels = tuple(labels) if labels else ()
             if metric_type == Gauge:
                 globals()[global_var_name] = Gauge(
@@ -276,18 +276,18 @@ class RealtimeAnomalyDetector:
             elif metric_type == Counter:
                 globals()[global_var_name] = Counter(
                     full_name, doc, labelnames=current_labels)
-        logging.info("Prometheus метрики инициализированы.")
+        logging.info("Prometheus The metrics are initialized.")
         if PROM_TOTAL_ANOMALIES_COUNT:
             try:
                 PROM_TOTAL_ANOMALIES_COUNT.inc(0)
-                logging.info("Счетчик total_anomalies_count инициализирован.")
+                logging.info("Total_anomalies_count is initialized.")
             except Exception as e:
-                logging.warning(f"Не удалось инициализировать счетчик: {e}")
+                logging.warning(f"Failed to initialize the counter: {e}")
 
     def _process_model_output(self, model, sequence_to_predict: np.ndarray, threshold: float):
-        # Используем ИСПРАВЛЕННЫЕ имена глобальных переменных метрик
+        # Use corrected names for global variable metrics
         if model is None:
-            logging.warning("Модель не загружена.")
+            logging.warning("The model isn't loaded.")
             if PROM_LATEST_RECONSTRUCTION_ERROR_MSE:
                 PROM_LATEST_RECONSTRUCTION_ERROR_MSE.set(0)
             if PROM_IS_ANOMALY_DETECTED:
@@ -316,28 +316,28 @@ class RealtimeAnomalyDetector:
                         PROM_FEATURE_RECONSTRUCTION_ERROR_MSE.labels(
                             feature_name=fnk).set(cfm)
                         if mse > threshold*0.5 or cfm > threshold*0.5:
-                            logging.info(f"Ошибка '{fnk}': {cfm:.6f}")
+                            logging.info(f"Mistake'{fnk}': {cfm:.6f}")
                     except Exception as e:
-                        logging.error(f"Ошибка уст. метрики для '{fnk}': {e}")
+                        logging.error(f"Oral error metrics for'{fnk}': {e}")
             is_anomaly = mse > threshold
             if is_anomaly:
                 logging.warning(
-                    f"!!! АНОМАЛИЯ !!! MSE: {mse:.6f} > Порог: {threshold:.6f}")
+                    f"!!! Anomaly!! MSE: {mse:.6f} > Threshold: 6f}")
                 if PROM_IS_ANOMALY_DETECTED:
                     PROM_IS_ANOMALY_DETECTED.set(1)
                 if PROM_TOTAL_ANOMALIES_COUNT:
                     PROM_TOTAL_ANOMALIES_COUNT.inc()
-                fer = ["Ошибки по признакам (аномалия):"]
+                fer = ["Errors by signs (anomaly):"]
                 for i, fnk in enumerate(self.metric_columns_ordered):
                     fer.append(f"  - '{fnk}': {mse_per_feature[i]:.6f}")
                 logging.warning("\n".join(fer))
             else:
                 logging.info(
-                    f"Норма. MSE: {mse:.6f} <= Порог: {threshold:.6f}")
+                    f"Norma. MSE: {mse:.6f} <= Threshold:.6f}")
                 if PROM_IS_ANOMALY_DETECTED:
                     PROM_IS_ANOMALY_DETECTED.set(0)
         except Exception as e:
-            logging.error(f"Ошибка предсказания: {e}", exc_info=True)
+            logging.error(f"Prediction error: {e}", exc_info=True)
             if PROM_LATEST_RECONSTRUCTION_ERROR_MSE:
                 PROM_LATEST_RECONSTRUCTION_ERROR_MSE.set(-1)
             if PROM_IS_ANOMALY_DETECTED:
@@ -348,53 +348,53 @@ class RealtimeAnomalyDetector:
                         feature_name=fnk).set(-1)
 
     def run_detection_cycle(self):
-        logging.info("Начало цикла.")
+        logging.info("Beginning of the cycle.")
         current_window_df = self._fetch_data_window()
-        # Используем ИСПРАВЛЕННЫЕ имена глобальных переменных метрик
+        # Use corrected names for global variable metrics
         if PROM_DATA_POINTS_IN_CURRENT_WINDOW:
             PROM_DATA_POINTS_IN_CURRENT_WINDOW.set(
                 len(current_window_df) if current_window_df is not None else 0)
         if current_window_df is None or current_window_df.empty:
-            logging.warning("Нет данных для окна. Пропуск.")
+            logging.warning("No window data. Pass.")
             self._process_model_output(
                 None, np.array([]), self.anomaly_threshold)
             return
         sequence_to_predict = self._preprocess_and_create_sequence(
             current_window_df.copy())
         if sequence_to_predict is None:
-            logging.warning("Не удалось предобработать данные. Пропуск.")
+            logging.warning("It was not possible to pre-process the data. Pass.")
             self._process_model_output(
                 None, np.array([]), self.anomaly_threshold)
             return
-        logging.info("--- Обработка моделью ---")
+        logging.info("--- Model processing ---")
         self._process_model_output(
             self.model_a, sequence_to_predict, self.anomaly_threshold)
         if PROM_LAST_SUCCESSFUL_RUN_TIMESTAMP_SECONDS:
             PROM_LAST_SUCCESSFUL_RUN_TIMESTAMP_SECONDS.set_to_current_time()
-        logging.info("Цикл завершен.")
+        logging.info("Cycle complete.")
 
     def start_server_and_loop(self):
         if not self.scaler or not self.model_a:
-            logging.error("Не загружен скейлер или модель. Запуск невозможен.")
+            logging.error("No skater or model loaded. Launch impossible.")
             exit(1)
         try:
             start_http_server(self.exporter_port)
-            logging.info(f"Prometheus exporter на порту {self.exporter_port}")
+            logging.info(f"Prometheus exporter at the port {self.exporter_port}")
         except OSError as e:
             if e.errno == 98 or e.errno == 10048:
-                logging.error(f"Порт {self.exporter_port} занят.")
+                logging.error(f"Port {self.exporter_port} is busy.")
             else:
                 logging.error(f"OSError exporter: {e}", exc_info=True)
             exit(1)
         except Exception as e:
-            logging.error(f"Ошибка exporter: {e}", exc_info=True)
+            logging.error(f"Error exporter: {e}", exc_info=True)
             exit(1)
         while True:
             try:
                 self.run_detection_cycle()
             except Exception as e:
-                logging.error(f"Крит. ошибка в цикле: {e}", exc_info=True)
-            logging.info(f"Ожидание {self.query_interval}с...")
+                logging.error(f"Critical error in the cycle: {e}", exc_info=True)
+            logging.info(f"Waiting {self.query_interval}c. .")
             time.sleep(self.query_interval)
 
 

@@ -112,10 +112,10 @@ The `config.yaml` file is central to running this project. Key sections include:
 The project follows a sequential workflow. Each stage can be launched via the `cli.py` utility. All output files will be placed in the directory specified by `artifacts_dir` in `config.yaml`.
 
 ```bash
-python cli.py collect       # сбор данных
-python cli.py preprocess    # предобработка
-python cli.py train         # обучение модели
-python cli.py detect        # запуск realtime детектора
+python cli.py collect       # collection
+python cli.py preprocess    # pretreatment
+python cli.py train         # modelling
+python cli.py detect        # launch of a realtime detector
 ```
 
 The sequential workflow is as follows:

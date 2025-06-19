@@ -5,52 +5,52 @@ import yaml
 from pathlib import Path
 from diskcache import Cache
 
-# --- Глобальные переменные ---
+# --- Global variables ---
 CONFIG = {}
 CACHE: Cache | None = None
 
-# --- Функции ---
+# --- Functions ---
 
 def load_config(config_path: Path) -> dict:
-    """Загружает конфигурацию из YAML файла."""
+    """Downloads the configuration from the YAML file."""
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
-        print(f"Конфигурация успешно загружена из {config_path}")
+        print(f"Configuration successfully downloaded from {config_path}")
         return config_data
     except FileNotFoundError:
-        print(f"Ошибка: Файл конфигурации не найден по пути {config_path}")
+        print(f"Error: The configuration file is not found on the path {config_path}")
         exit(1)
     except yaml.YAMLError as e:
-        print(f"Ошибка парсинга YAML файла {config_path}: {e}")
+        print(f"Error parsing YAML file {config_path}: {e}")
         exit(1)
     except Exception as e:
-        print(f"Непредвиденная ошибка при загрузке конфигурации {config_path}: {e}")
+        print(f"Unforeseen error when loading configuration {config_path}: {e}")
         exit(1)
 
 
 def query_prometheus_range(prometheus_url: str, query: str, start_time: datetime, end_time: datetime, step: str) -> pd.DataFrame:
-    """Запрашивает данные из Prometheus, используя кеш для ускорения повторных запросов."""
+    """Requests data from Prometheus, using cache to speed up repeated requests."""
     if CACHE is not None:
         cache_key = (prometheus_url, query, start_time.isoformat(), end_time.isoformat(), step)
         cached_result = CACHE.get(cache_key)
         if cached_result is not None:
-            # Убедимся, что загружаем копию, чтобы избежать проблем с изменяемостью
+            # Make sure we download a copy to avoid problems with changeability.
             return cached_result.copy()
 
     api_url = f"{prometheus_url}/api/v1/query_range"
     params = {'query': query, 'start': start_time.timestamp(), 'end': end_time.timestamp(), 'step': step}
-    print(f"  CACHE MISS: Запрос к Prometheus: {query[:70]}... ({start_time.strftime('%Y-%m-%d %H:%M')} -> {end_time.strftime('%Y-%m-%d %H:%M')})")
+    print(f"  CACHE MISS: Prometheus: {query[:70]} ({start_time.strftime}'%Y-%m-%d %H:%M')} -> {end_time.strftime('%Y-%m-%d %H:%M')})")
     
     try:
         response = requests.get(api_url, params=params, timeout=30)
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.RequestException as e:
-        print(f"    -> Ошибка при запросе к Prometheus: {e}")
+        print(f"    -> Error when requesting Prometheus: {e}")
         return pd.DataFrame()
     except ValueError as e:
-        print(f"    -> Ошибка декодирования JSON ответа от Prometheus: {e}\n    Текст ответа: {response.text}")
+        print(f"    -> Error decoding JSON response from Prometheus: {e}\n Response text: {response.text}")
         return pd.DataFrame()
 
     result_df = pd.DataFrame()
@@ -71,10 +71,10 @@ def query_prometheus_range(prometheus_url: str, query: str, start_time: datetime
         elif len(all_series_data) == 1:
             result_df = all_series_data[0]
         else:
-            print(f"    -> Предупреждение: запрос '{query}' вернул {len(all_series_data)} временных рядов. Возвращаем первый.")
+            print(f"    -> Warning: request'{query}' The time series has been returned. Return the first.")
             result_df = all_series_data[0]
     else:
-        print(f"    -> Ошибка в статусе ответа Prometheus: {data.get('errorType')}, {data.get('error')}")
+        print(f"    -> Error in the status of the answer Prometheus: {data.get()'errorType')}, {data.get('error')}")
 
     if CACHE is not None and not result_df.empty:
         CACHE.set(cache_key, result_df)
@@ -84,18 +84,18 @@ def query_prometheus_range(prometheus_url: str, query: str, start_time: datetime
 
 def collect_training_data(prometheus_url: str, queries_dict: dict, start_time: datetime, end_time: datetime, step: str, chunk_hours: int) -> pd.DataFrame:
     """
-    Собирает данные, разбивая большой временной диапазон на более мелкие фрагменты (чанки) для эффективного кеширования.
+    Collects data by breaking up a large time range into smaller chunks for efficient caching.
     """
     all_chunks_data = []
     current_start = start_time
-    print(f"Разбиваем период с {start_time.strftime('%Y-%m-%d %H:%M')} по {end_time.strftime('%Y-%m-%d %H:%M')} на чанки по {chunk_hours} час(а).")
+    print(f"Break the period with {start_time.strftime()'%Y-%m-%d %H:%M')} by {end_time.strftime()'%Y-%m-%d %H:%M')} {chunk_hours} hour(a).")
 
     while current_start < end_time:
         current_end = current_start + timedelta(hours=chunk_hours)
         if current_end > end_time:
             current_end = end_time
 
-        print(f"\n-- Сбор данных для чанка: {current_start.strftime('%Y-%m-%d %H:%M')} -> {current_end.strftime('%Y-%m-%d %H:%M')}")
+        print(f"\n-- Data collection for chunk: {current_start.strftime()'%Y-%m-%d %H:%M')} -> {current_end.strftime('%Y-%m-%d %H:%M')}")
         
         metrics_for_chunk = []
         for custom_name, query_string in queries_dict.items():
@@ -111,10 +111,10 @@ def collect_training_data(prometheus_url: str, queries_dict: dict, start_time: d
         current_start = current_end
         
     if not all_chunks_data:
-        print("\nНе удалось собрать никаких данных для всего периода.")
+        print("\nNo data was collected for the entire period.")
         return pd.DataFrame()
 
-    print("\nОбъединение данных из всех чанков...")
+    print("\nCombining data from all chunks. . .")
     final_df = pd.concat(all_chunks_data, axis=0)
 
     final_df = final_df[~final_df.index.duplicated(keep='first')]
@@ -128,7 +128,7 @@ def collect_training_data(prometheus_url: str, queries_dict: dict, start_time: d
 
     return final_df
 
-# --- Основной блок ---
+# --- Basic block ---
 if __name__ == "__main__":
     BASE_DIR = Path(__file__).parent
     CONFIG_FILE_PATH = BASE_DIR / "config.yaml"
@@ -137,15 +137,15 @@ if __name__ == "__main__":
     artifacts_path_str = CONFIG.get('artifacts_dir', 'artifacts')
     artifacts_dir = BASE_DIR / artifacts_path_str
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Директория для артефактов: {artifacts_dir}")
+    print(f"Directory for artifacts: {artifacts_dir}")
 
     cache_dir = artifacts_dir / "prometheus_cache"
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         CACHE = Cache(str(cache_dir))
-        print(f"Кеширование запросов Prometheus включено. Директория кеша: {cache_dir}")
+        print(f"Prometheus query caching is enabled. Cache directory: {cache_dir}")
     except Exception as e:
-        print(f"Не удалось создать директорию кеша {cache_dir}: {e}. Кеширование отключено.")
+        print(f"The cache directory was not created {cache_dir}: {e}. Caching's off.")
         CACHE = None
 
     PROMETHEUS_URL = CONFIG.get('prometheus_url')
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     DATA_SETTINGS = CONFIG.get('data_settings', {})
 
     if not PROMETHEUS_URL or not QUERIES:
-        print("Ошибка: 'prometheus_url' или 'queries' не найдены в файле конфигурации.")
+        print("Mistake:'prometheus_url' or'queries' Not found in the configuration file.")
         exit(1)
 
     STEP = DATA_SETTINGS.get('step', '30s')
@@ -161,34 +161,34 @@ if __name__ == "__main__":
     PARQUET_FILENAME = DATA_SETTINGS.get('output_filename', 'prometheus_metrics_data.parquet')
     output_file_path = artifacts_dir / PARQUET_FILENAME
 
-    print(f"\nСбор данных из Prometheus: {PROMETHEUS_URL}")
-    print(f"Шаг: {STEP} | Размер чанка для кеширования: {CHUNK_HOURS} час(а)")
-    print(f"Файл для сохранения: {output_file_path}")
+    print(f"\nData collection from Prometheus: {PROMETHEUS_URL}")
+    print(f"Step: {STEP} | Chank size for caching: {CHUNK_HOURS} hour(a)")
+    print(f"File to save: {output_file_path}")
     print("-" * 30)
 
     training_data_list = []
     collection_periods = DATA_SETTINGS.get('collection_periods_iso')
 
     if collection_periods and isinstance(collection_periods, list):
-        print("Обнаружена конфигурация с несколькими периодами 'collection_periods_iso'.")
+        print("Multi-period configuration discovered'collection_periods_iso'.")
         for i, period in enumerate(collection_periods):
             try:
                 start_time = datetime.fromisoformat(period['start'])
                 end_time = datetime.fromisoformat(period['end'])
                 if start_time >= end_time:
-                    print(f"Ошибка в периоде {i+1}: 'start' ({start_time}) должен быть раньше 'end' ({end_time}). Пропуск периода.")
+                    print(f"Error in the period {i+1}:'start' ({start_time}) should have been sooner'end' ({end_time}). Period skip.")
                     continue
                 
-                print(f"\n--- Обработка периода {i+1}/{len(collection_periods)} ---")
+                print(f"\n--- Period treatment {i+1}/{len(collection_periods)} ---")
                 period_df = collect_training_data(PROMETHEUS_URL, QUERIES, start_time, end_time, STEP, CHUNK_HOURS)
                 if not period_df.empty:
                     training_data_list.append(period_df)
 
             except (KeyError, ValueError) as e:
-                print(f"Ошибка в конфигурации периода {i+1}: {e}. Пропуск периода.")
+                print(f"Error in period configuration {i+1}: {e} Period skip.")
                 continue
     else:
-        print("Конфигурация 'collection_periods_iso' не найдена, используется 'collection_period_hours' или 'start_time_iso'/'end_time_iso'.")
+        print("The configuration'collection_periods_iso' not found, used'collection_period_hours' or'start_time_iso'/'end_time_iso'.")
         collection_period_hours = DATA_SETTINGS.get('collection_period_hours')
         start_time_iso = DATA_SETTINGS.get('start_time_iso')
         end_time_iso = DATA_SETTINGS.get('end_time_iso')
@@ -200,20 +200,20 @@ if __name__ == "__main__":
                 start_time = datetime.fromisoformat(start_time_iso)
                 end_time = datetime.fromisoformat(end_time_iso)
                 if start_time >= end_time:
-                    print("Ошибка: 'start_time_iso' должен быть раньше 'end_time_iso'.")
+                    print("Mistake:'start_time_iso' should have been sooner'end_time_iso'.")
                     exit(1)
             except ValueError:
-                print("Ошибка: 'start_time_iso' или 'end_time_iso' имеют неверный формат. Используйте YYYY-MM-DDTHH:MM:SS.")
+                print("Mistake:'start_time_iso' or'end_time_iso' They have the wrong format. Use YYYY-MM-DDTHH:MM:SS.")
                 exit(1)
         elif collection_period_hours and collection_period_hours > 0:
             end_time = datetime.now()
             start_time = end_time - timedelta(hours=collection_period_hours)
         else:
-            print("Ошибка: Некорректные настройки времени. Укажите 'collection_periods_iso', 'collection_period_hours' > 0 или 'start_time_iso' и 'end_time_iso'.")
+            print("Mistake: Incorrect timing settings. Indicate'collection_periods_iso', 'collection_period_hours' > 0 or'start_time_iso' and'end_time_iso'.")
             exit(1)
             
         if start_time and end_time:
-            print(f"\n--- Обработка единого периода ---")
+            print(f"\n--- Processing a single period ---")
             single_period_df = collect_training_data(PROMETHEUS_URL, QUERIES, start_time, end_time, STEP, CHUNK_HOURS)
             if not single_period_df.empty:
                 training_data_list.append(single_period_df)
@@ -226,20 +226,20 @@ if __name__ == "__main__":
         final_training_data['day_of_week'] = final_training_data.index.dayofweek.astype(int)
         final_training_data['hour_of_day'] = final_training_data.index.hour.astype(int)
 
-        print("\n--- Собранные данные (первые 5 и последние 5 строк) ---")
+        print("\n--- Data collected (first 5 and last 5 lines)")
         print(final_training_data.head())
         print("...")
         print(final_training_data.tail())
-        print(f"\nРазмер итогового DataFrame: {final_training_data.shape}")
+        print(f"\nDataFrame size: {final_training_data.shape}")
 
         try:
             final_training_data.to_parquet(output_file_path, engine='pyarrow', index=True)
-            print(f"\nДанные успешно сохранены в {output_file_path}")
+            print(f"\nThe data is successfully stored in {output_file_path}")
         except Exception as e:
-            print(f"\nОшибка при сохранении данных в Parquet: {e}")
-            print("Убедитесь, что библиотека 'pyarrow' (или 'fastparquet') установлена.")
+            print(f"\nError in saving data in Parquet: {e}")
+            print("Make sure that the library'pyarrow' (or'fastparquet') set.")
     else:
-        print("\nНе удалось собрать никаких данных для указанных периодов.")
+        print("\nNo data were collected for these periods.")
 
     if CACHE is not None:
         CACHE.close()

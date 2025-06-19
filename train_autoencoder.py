@@ -10,63 +10,63 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 import matplotlib.pyplot as plt
 import logging
 
-# Настройка логирования
+# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- Функции --- (load_config, build_lstm_autoencoder - остаются прежними)
+# --- The functions --- (load_config, build_lstm_autoencoder - remain the same)
 
 def load_config(config_path: Path) -> dict:
-    """Загружает конфигурацию из YAML файла."""
+    """Downloads the configuration from the YAML file."""
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
-        logging.info(f"Конфигурация успешно загружена из {config_path}")
+        logging.info(f"Configuration successfully downloaded from {config_path}")
         return config_data
     except FileNotFoundError:
-        logging.error(f"Ошибка: Файл конфигурации не найден по пути {config_path}")
+        logging.error(f"Error: The configuration file is not found on the path {config_path}")
         exit(1)
     except yaml.YAMLError as e:
-        logging.error(f"Ошибка парсинга YAML файла {config_path}: {e}")
+        logging.error(f"Error parsing YAML file {config_path}: {e}")
         exit(1)
     return {}
 
 def load_processed_data_parquet(file_path: Path) -> pd.DataFrame:
-    """Загружает предобработанные данные из Parquet файла."""
+    """Uploads pre-processed data from the Parquet file."""
     if not file_path.exists():
-        logging.error(f"Ошибка: Файл данных Parquet не найден по пути {file_path}")
+        logging.error(f"Error: Parquet data file is not found on the path {file_path}")
         exit(1)
     try:
         df = pd.read_parquet(file_path)
-        logging.info(f"Данные из Parquet успешно загружены: {file_path}. Размер: {df.shape}")
-        # df.info(verbose=True, show_counts=True) # Для более детальной информации можно раскомментировать
+        logging.info(f"Data from Parquet has been successfully downloaded: {file_path} Size: {df.shape}")
+        # df.info(verbose=True, show_counts=True) # For more detailed information, you can comment
         return df
     except Exception as e:
-        logging.error(f"Ошибка при загрузке данных Parquet из {file_path}: {e}")
+        logging.error(f"Error when downloading Parquet data from {file_path}: {e}")
         exit(1)
 
 def load_sequences_npy(file_path: Path) -> np.ndarray:
-    """Загружает последовательности из NPY файла."""
+    """Loads sequences from the NPY file."""
     if not file_path.exists():
-        logging.error(f"Ошибка: Файл NPY не найден по пути {file_path}")
+        logging.error(f"Error: NPY file is not found on the path {file_path}")
         exit(1)
     try:
         sequences = np.load(file_path)
-        logging.info(f"Последовательности из NPY успешно загружены: {file_path}. Форма: {sequences.shape}")
+        logging.info(f"The sequences from the NPY have been successfully downloaded: {file_path}. Shape: {sequences.shape}")
         return sequences
     except Exception as e:
-        logging.error(f"Ошибка при загрузке NPY файла из {file_path}: {e}")
+        logging.error(f"Error when loading NPY file from {file_path}: {e}")
         exit(1)
 
 
 def create_sequences_from_df(data_values: np.ndarray, sequence_length: int) -> np.ndarray:
     """
-    Создает последовательности (окна) из массива значений временного ряда.
-    Для автоэнкодера X и y - это одна и та же последовательность.
+    Creates sequences (windows) from an array of time series values.
+    For an autoencoder, X and y are the same sequence.
     """
     xs = []
     if len(data_values) < sequence_length:
-        logging.warning(f"Данных ({len(data_values)}) меньше, чем длина последовательности ({sequence_length}). Невозможно создать последовательности.")
-        return np.array(xs) # Возвращаем пустой массив, если данных не хватает
+        logging.warning(f"The data ({len(data_values)}) is smaller than the sequence length ({sequence_length}). You can't create sequences.")
+        return np.array(xs) # Return the empty array if there is not enough data
 
     for i in range(len(data_values) - sequence_length + 1):
         x = data_values[i:(i + sequence_length)]
@@ -74,7 +74,7 @@ def create_sequences_from_df(data_values: np.ndarray, sequence_length: int) -> n
     return np.array(xs)
 
 def build_lstm_autoencoder(sequence_length: int, num_features: int, config_params: dict) -> Model:
-    """Строит LSTM автоэнкодер модель."""
+    """Builds an LSTM autoencoder model."""
     lstm_units_e1 = config_params.get('lstm_units_encoder1', 64)
     lstm_units_e2_latent = config_params.get('lstm_units_encoder2_latent', 32)
     lstm_units_d1 = config_params.get('lstm_units_decoder1', 32)
@@ -91,37 +91,37 @@ def build_lstm_autoencoder(sequence_length: int, num_features: int, config_param
     return model
 
 def load_model(model_path: Path) -> tf.keras.Model:
-    """Загружает модель TensorFlow/Keras из файла."""
+    """Downloads the TensorFlow/Keras model from the file."""
     if not model_path.exists():
-        raise FileNotFoundError(f"Файл модели не найден: {model_path}")
+        raise FileNotFoundError(f"Model file not found: {model_path}")
     try:
         model = tf.keras.models.load_model(model_path)
-        logging.info(f"Модель успешно загружена из {model_path}")
+        logging.info(f"The model was successfully downloaded from {model_path}")
         model.summary(print_fn=logging.info)
         return model
     except Exception as e:
-        logging.error(f"Ошибка при загрузке модели из {model_path}: {e}", exc_info=True)
+        logging.error(f"Error when loading the model from {model_path}: {e}", exc_info=True)
         raise
 
-# --- Основной блок ---
+# --- Basic block ---
 if __name__ == "__main__":
     BASE_DIR = Path(__file__).resolve().parent
     CONFIG_FILE_PATH = BASE_DIR / "config.yaml"
     
     CONFIG = load_config(CONFIG_FILE_PATH)
 
-    # Получение пути для артефактов ---
+    # Getting a pathway for artifacts ---
     artifacts_path_str = CONFIG.get('artifacts_dir', 'artifacts')
     artifacts_dir = BASE_DIR / artifacts_path_str
-    # Создаем директорию, если она не существует
+    # Create a directory if it does not exist.
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-    logging.info(f"Директория для артефактов: {artifacts_dir}")
+    logging.info(f"Directory for artifacts: {artifacts_dir}")
 
-    # Извлечение настроек
+    # Removing settings
     preprocess_settings = CONFIG.get('preprocessing_settings', {})
     training_settings = CONFIG.get('training_settings', {})
 
-    # Общие параметры обучения
+    # General training parameters
     sequence_length = training_settings.get('sequence_length', 20)
     train_split_ratio = training_settings.get('train_split_ratio', 0.8)
     epochs = training_settings.get('epochs', 50)
@@ -129,21 +129,21 @@ if __name__ == "__main__":
     learning_rate = training_settings.get('learning_rate', 0.001)
     early_stopping_patience = training_settings.get('early_stopping_patience', 0)
 
-    # Определение входных данных и имени выходной модели
-    logging.info("Режим обучения: на предобработанных данных")
+    # Definition of input data and output model name
+    logging.info("Training mode: on pre-processed data")
     input_parquet_filename = training_settings.get('input_processed_filename',
                                                   preprocess_settings.get('processed_output_filename'))
     if not input_parquet_filename:
-        logging.error("Имя файла с предобработанными данными Parquet не указано в config.yaml "
-                      "(training_settings.input_processed_filename или preprocessing_settings.processed_output_filename).")
+        logging.error("The name of the file with the preprocessed Parquet data is not specified in config.yaml"
+                      "(training_settings.input_processed_filename or preprocessing_settings.processed_output_filename.")
         exit(1)
         
-    # Формируем путь к входному файлу внутри директории артефактов ---
+    # Form the path to the input file inside the artifact directory.
     input_file_path = artifacts_dir / input_parquet_filename
     df_processed = load_processed_data_parquet(input_file_path)
 
     if df_processed.empty:
-        logging.error("Загруженный DataFrame для обучения пуст. Обучение невозможно.")
+        logging.error("The downloaded DataFrame for training is empty. Training is impossible.")
         exit(1)
 
     num_features = df_processed.shape[1]
@@ -152,61 +152,61 @@ if __name__ == "__main__":
     model_output_filename = training_settings.get('model_output_filename', 'lstm_autoencoder_model.keras')
 
     if X_all_sequences.shape[0] == 0:
-        logging.error("Не удалось создать ни одной последовательности из Parquet данных. Обучение невозможно.")
+        logging.error("It was not possible to create any sequences from Parquet data. Training is impossible.")
         exit(1)
 
-    # Формируем путь к выходному файлу модели внутри директории артефактов ---
+    # Form the path to the model output file inside the artifact directory.
     model_output_path = artifacts_dir / model_output_filename
-    logging.info(f"Модель будет сохранена в: {model_output_path}")
+    logging.info(f"The model will be saved to: {model_output_path}")
 
-    # Для автоэнкодера X (вход) и Y (цель) - это одни и те же последовательности
+    # For an autoencoder, X (input) and Y (target) are the same sequences.
     y_all_sequences = X_all_sequences 
-    logging.info(f"Всего создано/загружено {X_all_sequences.shape[0]} последовательностей длиной {X_all_sequences.shape[1]} с {X_all_sequences.shape[2]} признаками.")
+    logging.info(f"A total of {X_all_sequences.shape[0]} sequences with {X_all_sequences.shape[1]} features are created/downloaded.")
 
-    # Разделение данных на обучающую и валидационную выборки
-    if X_all_sequences.shape[0] < 2 : # Нужно хотя бы 2 сэмпла для разделения
-        logging.error(f"Слишком мало последовательностей ({X_all_sequences.shape[0]}) для разделения на train/validation.")
+    # Separation of data into training and validation samples
+    if X_all_sequences.shape[0] < 2 : # You need at least 2 samples to separate.
+        logging.error(f"There are too few sequences ({X_all_sequences.shape[0]}) to divide into train/validation.")
         exit(1)
 
     val_split_size = 1.0 - train_split_ratio
     if val_split_size <= 0.0 or val_split_size >= 1.0:
-        if X_all_sequences.shape[0] > 1: # Если есть что валидировать
-            logging.warning(f"train_split_ratio ({train_split_ratio}) некорректен для создания валидационной выборки. Используется одна последовательность для валидации, если возможно.")
-            # Если train_split_ratio = 1, то val_split_size = 0. sklearn требует test_size > 0
-            # В этом случае, можно взять 1 сэмпл для валидации, если всего их > 1
+        if X_all_sequences.shape[0] > 1: # If there's anything to validate
+            logging.warning(f"train_split_ratio ({train_split_ratio}) It is incorrect to create a validation sample. A single sequence is used for validation if possible.")
+            # If train_split_ratio = 1, then val_split_size = 0. sklearn requires test_size > 0
+            # In this case, you can take 1 sample for validation, if all of them > 1.
             if X_all_sequences.shape[0] > 1 and train_split_ratio >= 1.0 :
                  X_train, X_val, y_train, y_val = X_all_sequences[:-1], X_all_sequences[-1:], y_all_sequences[:-1], y_all_sequences[-1:]
-            elif X_all_sequences.shape[0] > 1 and train_split_ratio <= 0.0 : # Все на валидацию
+            elif X_all_sequences.shape[0] > 1 and train_split_ratio <= 0.0 : # All validated.
                  X_train, X_val, y_train, y_val = X_all_sequences[:1], X_all_sequences[1:], y_all_sequences[:1], y_all_sequences[1:]
-            else: # Если всего один сэмпл, то он пойдет в трейн, валидации не будет
+            else: # If there's only one sample, he'll go to Train, no validation.
                  X_train, X_val, y_train, y_val = X_all_sequences, np.array([]).reshape(0,sequence_length,num_features), y_all_sequences, np.array([]).reshape(0,sequence_length,num_features)
-                 logging.warning("Валидационная выборка пуста, так как недостаточно данных.")
+                 logging.warning("The validation sample is empty because there is not enough data.")
         else:
             X_train, X_val, y_train, y_val = X_all_sequences, np.array([]).reshape(0,sequence_length,num_features), y_all_sequences, np.array([]).reshape(0,sequence_length,num_features)
-            logging.warning("Валидационная выборка пуста, так как всего одна последовательность.")
+            logging.warning("The validation sample is empty because there is only one sequence.")
     else:
         X_train, X_val, y_train, y_val = train_test_split(
             X_all_sequences, y_all_sequences, train_size=train_split_ratio, shuffle=True, random_state=42
         )
 
-    logging.info(f"Размер обучающей выборки: {X_train.shape}")
-    logging.info(f"Размер валидационной выборки: {X_val.shape}")
+    logging.info(f"Training sample size: {X_train.shape}")
+    logging.info(f"Validation sample size: {X_val.shape}")
 
-    # Построение модели LSTM автоэнкодера
+    # Building an LSTM autoencoder model
     autoencoder_model = build_lstm_autoencoder(sequence_length, num_features, training_settings)
     
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
     autoencoder_model.compile(optimizer=optimizer, loss='mse')
     autoencoder_model.summary(print_fn=logging.info)
 
-    # Обучение модели
+    # Model learning
     callbacks = []
     if early_stopping_patience and early_stopping_patience > 0:
         early_stopping = EarlyStopping(monitor='val_loss', patience=early_stopping_patience, restore_best_weights=True, verbose=1)
         callbacks.append(early_stopping)
-        logging.info(f"EarlyStopping включен с терпением: {early_stopping_patience} эпох.")
+        logging.info(f"EarlyStopping Included with patience: {early_stopping_patience} eras")
     
-    # Директория для чекпоинтов внутри директории артефактов ---
+    # Directory for checkpoints inside the artifact directory
     checkpoint_dir = artifacts_dir / "model_checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_filepath = checkpoint_dir / "best_model.keras"
@@ -219,9 +219,9 @@ if __name__ == "__main__":
         save_best_only=True,
         verbose=1)
     callbacks.append(model_checkpoint_callback)
-    logging.info(f"ModelCheckpoint включен. Лучшая модель будет сохранена в: {checkpoint_filepath}")
+    logging.info(f"ModelCheckpoint included. The best model will be saved in: {checkpoint_filepath}")
 
-    logging.info("\nНачало обучения модели...")
+    logging.info("\nBegin model training. . .")
     validation_data_to_pass = None
     if X_val.shape[0] > 0:
         validation_data_to_pass = (X_val, y_val)
@@ -236,61 +236,61 @@ if __name__ == "__main__":
         verbose=1
     )
 
-    logging.info("Обучение завершено.")
+    logging.info("Training is complete.")
 
     if checkpoint_filepath.exists() and any(isinstance(cb, ModelCheckpoint) for cb in callbacks):
-        logging.info(f"Загрузка лучшей модели из чекпоинта: {checkpoint_filepath}")
+        logging.info(f"Download the best model from checkpoint: {checkpoint_filepath}")
         try:
             autoencoder_model = load_model(checkpoint_filepath)
         except Exception as e:
-            logging.error(f"Ошибка загрузки модели из чекпоинта {checkpoint_filepath}: {e}. Сохраняется последняя модель.")
+            logging.error(f"Error loading model from checkpoint {checkpoint_filepath}: {e}. The latest model is maintained.")
 
     try:
         autoencoder_model.save(model_output_path)
-        logging.info(f"Обученная модель сохранена в: {model_output_path}")
+        logging.info(f"The trained model is saved in: {model_output_path}")
     except Exception as e:
-        logging.error(f"Ошибка при сохранении модели: {e}")
+        logging.error(f"Error in saving the model: {e}")
 
-    # Визуализация истории обучения (потери)
+    # Visualization of learning history (loss)
     if validation_data_to_pass: 
         plt.figure(figsize=(10, 6))
-        plt.plot(history.history['loss'], label='Потери на обучении (Train Loss)')
-        plt.plot(history.history['val_loss'], label='Потери на валидации (Validation Loss)')
-        plt.title(f'История обучения ({model_output_filename}): функция потерь')
-        plt.xlabel('Эпоха')
-        plt.ylabel('Потери (MSE)')
+        plt.plot(history.history['loss'], label='Learning Loss (Train Loss)')
+        plt.plot(history.history['val_loss'], label='Validation loss (validation loss)')
+        plt.title(f'Learning history ({model_output_filename})')
+        plt.xlabel('Epoch')
+        plt.ylabel('Losses (MSE)')
         plt.legend()
         plt.grid(True)
-        # Путь для сохранения графика внутри директории артефактов ---
+        # The way to save the graph inside the artifact directory
         plot_filename_loss = artifacts_dir / f"training_history_loss_{model_output_filename.replace('.keras', '')}.png"
         try:
             plt.savefig(plot_filename_loss)
-            logging.info(f"График истории обучения сохранен в: {plot_filename_loss}")
+            logging.info(f"Graph of the history of learning is saved in: {plot_filename_loss}")
         except Exception as e:
-            logging.error(f"Ошибка при сохранении графика истории обучения: {e}")
+            logging.error(f"Error in maintaining the schedule of learning history: {e}")
     else:
-        logging.info("График val_loss не строится, так как валидационная выборка была пуста.")
+        logging.info("The val_loss graph is not constructed because the validation sample was empty.")
 
-    # Оценка распределения ошибок реконструкции на валидационных данных (если они есть)
+    # Evaluation of the distribution of reconstruction errors on validation data (if any)
     if X_val.shape[0] > 0:
-        logging.info("\nОценка ошибок реконструкции на валидационной выборке...")
+        logging.info("\nEvaluation of reconstruction errors on the validation sample. . .")
         X_val_pred = autoencoder_model.predict(X_val, batch_size=batch_size)
         mse_val = np.mean(np.power(X_val - X_val_pred, 2), axis=(1, 2))
 
         plt.figure(figsize=(10, 6))
         plt.hist(mse_val, bins=50, density=True, alpha=0.75)
-        plt.title(f'Гистограмма ошибок реконструкции ({model_output_filename}) на валидации (MSE)')
-        plt.xlabel('Ошибка реконструкции (MSE)')
-        plt.ylabel('Плотность')
+        plt.title(f'Histogram of reconstruction errors ({model_output_filename}) on validation (MSE)')
+        plt.xlabel('Reconstruction error (MSE)')
+        plt.ylabel('Density')
         plt.grid(True)
-        # Путь для сохранения гистограммы внутри директории артефактов ---
+        # The way to save the histogram inside the artifact directory
         plot_filename_hist = artifacts_dir / f"reconstruction_error_histogram_{model_output_filename.replace('.keras', '')}.png"
         try:
             plt.savefig(plot_filename_hist)
-            logging.info(f"Гистограмма ошибок реконструкции сохранена в: {plot_filename_hist}")
+            logging.info(f"The reconstruction error histogram is saved in: {plot_filename_hist}")
         except Exception as e:
-            logging.error(f"Ошибка при сохранении гистограммы ошибок: {e}")
+            logging.error(f"The error in saving the error histogram: {e}")
     else:
-        logging.info("Гистограмма ошибок реконструкции на валидации не строится, так как валидационная выборка была пуста.")
+        logging.info("A histogram of reconstruction errors on validation is not built, since the validation sample was empty.")
 
-    logging.info(f"--- Скрипт обучения модели '{model_output_filename}' завершен ---")
+    logging.info(f"--- Model learning script'{model_output_filename}' completed--")

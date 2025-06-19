@@ -5,24 +5,24 @@ from pathlib import Path
 
 
 def run_script(script_name: str) -> None:
-    """Запускает указанный скрипт в отдельном процессе."""
+    """Runs this script in a separate process."""
     script_path = Path(__file__).resolve().parent / script_name
     if not script_path.exists():
-        raise FileNotFoundError(f"Не найден скрипт: {script_path}")
+        raise FileNotFoundError(f"No script found: {script_path}")
     subprocess.run([sys.executable, str(script_path)], check=True)
 
 
 def main() -> None:
-    """Точка входа CLI."""
+    """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Утилита для запуска этапов обработки данных"
+        description="Utility to start stages of data processing"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("collect", help="Сбор данных из Prometheus")
-    subparsers.add_parser("preprocess", help="Предобработка собранных данных")
-    subparsers.add_parser("train", help="Обучение модели")
-    subparsers.add_parser("detect", help="Запуск realtime детектора")
+    subparsers.add_parser("collect", help="Data collection from Prometheus")
+    subparsers.add_parser("preprocess", help="Preparation of collected data")
+    subparsers.add_parser("train", help="Model learning")
+    subparsers.add_parser("detect", help="Running a realtime detector")
 
     args = parser.parse_args()
 

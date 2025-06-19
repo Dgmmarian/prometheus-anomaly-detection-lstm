@@ -1,11 +1,11 @@
-# URL вашего Prometheus сервера
+# URL your Prometheus server
 prometheus_url: "http://172.30.208.1:9090"
 
-# Директория для сохранения всех артефактов: данных, моделей, скейлеров и графиков.
+# A directory to preserve all artifacts: data, models, scalers and graphs.
 artifacts_dir: "artifacts"
 
-# Запросы PromQL для сбора метрик
-# Ключ - это имя колонки в итоговом DataFrame
+# PromQL queries to collect metrics
+# The key is the column name in the final DataFrame.
 queries:
   virtual_memory_free_bytes: 'windows_os_virtual_memory_free_bytes{job="Windows Exporter"}'
   system_threads: 'windows_system_threads{job="Windows Exporter"}'
@@ -25,10 +25,10 @@ queries:
   system_calls_rate: 'rate(windows_system_system_calls_total{job="Windows Exporter"}[1m])'
   thermalzone_temperature_celsius: 'windows_thermalzone_temperature_celsius{job=~"Windows Exporter|WMI Exporter"}'
 
-# Настройки сбора данных
+# Data collection settings
 data_settings:
-  # За какой период в прошлом собирать данные (в часах).
-  # Если указано 0 или отсутствует, и заданы start_time_iso/end_time_iso, будут использованы они.
+  # For what period in the past to collect data (in hours).
+  # If 0 is specified or not, and start_time_iso/end_time_iso is specified, they will be used.
   collection_period_hours: 336
   collection_periods_iso:
     - start: "2025-05-23T10:00:00"
@@ -38,60 +38,60 @@ data_settings:
     - start: "2025-06-04T04:00:00"
       end: "2025-06-07T15:00:00"
   cache_chunk_hours: 1
-  # Опционально: можно задать конкретные даты и время начала/конца в формате ISO (YYYY-MM-DDTHH:MM:SS)
-  # Если они заданы и collection_period_hours = 0 или отсутствует, будут иметь приоритет.
+  # Optionally, you can set specific start/end dates in ISO (YYYY-MM-DDTHH:MM:SS) format.
+  # If they are set and collection_period_hours = 0 or not, they will have priority.
   # start_time_iso: "2025-05-31T10:00:00"
   # end_time_iso: "2025-05-31T11:00:00"
 
-  # Шаг выборки данных (в секундах или формате Prometheus '15s', '1m', '1h')
+  # Data sampling step (in seconds or Prometheus format)'15s', '1m', '1h')
   step: "2m"
 
-  # Имя файла для сохранения итогового датасета
-  # Файл будет содержать также колонки day_of_week и hour_of_day
+  # File name to save the final dataset
+  # The file will also contain columns day_of_week and hour_of_day.
   output_filename: "prometheus_metrics_data.parquet"
 
 preprocessing_settings:
-  # Имя файла с "сырыми" данными (вход для этого скрипта)
-  # Обычно это output_filename из секции data_settings
-  # Если не указано, будет взято из data_settings.output_filename
+  # File name with"raw" data (input for this script)
+  # This is usually output_filename from the data_settings section.
+  # If not stated, will be taken from data_settings.output_filename
   # input_filename: "prometheus_metrics_data.parquet" 
 
-  # Стратегия заполнения NaN
-  # Возможные значения:
-  # - "ffill_then_bfill": сначала прямое, потом обратное заполнение
-  # - "mean": заполнение средним значением по колонке
-  # - "median": заполнение медианой по колонке
-  # - "drop_rows": удаление строк с любым NaN
-  # - "none": ничего не делать с NaN (не рекомендуется для большинства моделей)
+  # NaN filling strategy
+  # Possible values:
+  # - "ffill_then_bfill": First direct, then reverse filling
+  # - "mean": filling-in
+  # - "median": columnization
+  # - "drop_rows": stripping
+  # - "none": Do nothing with NaN (not recommended for most models)
   nan_fill_strategy: "ffill_then_bfill"
 
-  # Тип скейлера для нормализации/стандартизации
-  # Возможные значения: "MinMaxScaler", "StandardScaler"
+  # Type of skater for normalization/standardization
+  # Possible values:"MinMaxScaler", "StandardScaler"
   scaler_type: "MinMaxScaler"
 
-  # На этом этапе и при сборе данных добавляются временные признаки:
-  # 'day_of_week' и 'hour_of_day'
+  # At this stage and when collecting data, temporary signs are added:
+  # 'day_of_week' and'hour_of_day'
 
-  # Имя файла для сохранения обработанных данных
+  # File name to save processed data
   processed_output_filename: "processed_metrics_data.parquet"
 
-  # Имя файла для сохранения обученного скейлера
+  # File name to save a trained skater
   scaler_output_filename: "fitted_scaler.joblib"
 
 data_filtering_settings:
-  # input_processed_filename: будет взят из preprocessing_settings.processed_output_filename
-  # model_filename: будет взят из training_settings.model_output_filename
-  # sequence_length: будет взят из training_settings.sequence_length
-  # anomaly_threshold_mse: будет взят из real_time_anomaly_detection.anomaly_threshold_mse
+  # input_processed_filename: will be taken from preprocessing_setting.processed_output_filename
+  # model_filename: will be taken from training_setting.model_output_filename
+  # sequence_length: will be taken from training_setting.sequence_length
+  # anomaly_threshold_mse: will be taken from real_time_anomaly_detection.anomaly_threshold_mse
 
-  # Имена выходных файлов для отфильтрованных последовательностей
+  # Output file names for filtered sequences
   normal_sequences_output_filename: "normal_sequences.npy"
   anomalous_sequences_output_filename: "anomalous_sequences.npy"
-  # Опционально: сохранить все ошибки реконструкции для анализа
+  # Optional: Save all reconstruction errors for analysis
   # all_sequence_errors_output_filename: "all_sequence_errors.npy"
 
 training_settings:
-  # Общие параметры обучения
+  # General training parameters
   # input_processed_filename: "processed_metrics_data.parquet"
   model_output_filename: "lstm_autoencoder_model.keras"
   sequence_length: 20
@@ -107,25 +107,25 @@ training_settings:
 
 
 real_time_anomaly_detection:
-  # Как часто (в секундах) опрашивать Prometheus и выполнять детекцию
+  # How often (in seconds) to poll Prometheus and perform detection
   query_interval_seconds: 30
 
-  # Порог ошибки реконструкции (MSE) для объявления аномалии.
-  # !!! ВАЖНО: Это значение нужно тщательно подобрать на основе анализа
-  # гистограммы ошибок на валидационных/тестовых "нормальных" данных.
-  # Например, 95-й или 99-й перцентиль этих ошибок.
-  # Пока что это значение - ЗАГЛУШКА.
-  # Пример, требует точной настройки!
+  # Reconstruction error threshold (MSE) for declaring an anomaly.
+  # !!! IMPORTANT: This value should be carefully selected based on analysis.
+  # histogram of errors on validation / test"normal" data.
+  # For example, the 95th or 99th percentile of these errors.
+  # So far, it's a stub.
+  # An example requires fine-tuning!
   anomaly_threshold_mse: 0.0025
 
 
-  # Порт, на котором будет работать Prometheus exporter этого модуля
-  exporter_port: 8901 # Убедитесь, что порт не занят
+  # Port where Prometheus exporter of this module will operate
+  exporter_port: 8901 # Make sure the port is not occupied.
 
-  # Префикс для метрик, которые будет публиковать этот экспортер (опционально)
+  # Prefix for metrics that this exporter will publish (optional)
   metrics_prefix: "anomaly_detector_"
 
-  # Настройки для запроса данных для одного окна детекции:
-  # Длительность шага данных, как в data_settings (нужно для расчета окна)
-  # Если не указано, будет взято из data_settings.step
-  # data_step_duration: "30s" # например, "30s", "1m"
+  # Settings to request data for a single detection window:
+  # Duration of the data step, as in data_settings (necessary to calculate the window)
+  # If not specified, it will be taken from data_settings.step
+  # data_step_duration: "30s" # for example,"30s", "1m"
