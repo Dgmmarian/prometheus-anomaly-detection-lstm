@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "CLI: Сбор данных (collect)",
+            "name": "CLI: Data collection (collect)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/cli.py",
@@ -13,7 +13,7 @@
             "justMyCode": true
         },
         {
-            "name": "CLI: Предобработка (preprocess)",
+            "name": "CLI: Preprocessing (preprocess)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/cli.py",
@@ -24,7 +24,7 @@
             "justMyCode": true
         },
         {
-            "name": "CLI: Обучение модели (train)",
+            "name": "CLI: Model training (train)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/cli.py",
@@ -35,7 +35,7 @@
             "justMyCode": true
         },
         {
-            "name": "CLI: Real-time детектор (detect)",
+            "name": "CLI: Real-time detector",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/cli.py",
@@ -46,7 +46,7 @@
             "justMyCode": true
         },
         {
-            "name": "Отдельно: Фильтрация данных",
+            "name": "Separately: Data filtering",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/filter_anomalous_data.py",
@@ -54,7 +54,7 @@
             "justMyCode": true
         },
         {
-            "name": "Отладчик Python: Текущий файл",
+            "name": "Python debugger: Current file.",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
