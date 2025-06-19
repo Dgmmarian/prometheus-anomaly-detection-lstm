@@ -1,107 +1,107 @@
-# Makefile для управления Python проектом с помощью uv
+# Makefile To manage a Python project using uv
 
-# --- Переменные ---
-# Используем uv для всех операций, связанных с окружением и пакетами
+# --- Variables--
+# Use uv for all environment and packet operations
 UV = uv
 PYTHON_IN_VENV = .venv/bin/python
 
-# Цель по умолчанию - показать справку
+# The default goal is to show the help
 .DEFAULT_GOAL := help
 
-# `.PHONY` объявляет цели, которые не являются файлами.
+# `.PHONY` Declare goals that are not files.
 .PHONY: help setup-uv install sync lock update collect preprocess train detect build clean
 
-# --- Команды для разработки ---
+# --- Development teams ---
 
 help:
-	@echo "Makefile для проекта prometheus-anomaly-detection-lstm"
+	@echo "Makefile Prometheus-anomaly-detection-lstm project"
 	@echo "--------------------------------------------------------"
-	@echo "Доступные команды:"
-	@echo "\n  make setup-uv      - Проверяет и устанавливает uv, если он отсутствует."
-	@echo "  make install       - (Первичная настройка) Устанавливает uv, создает окружение и ставит зависимости."
-	@echo "  make sync          - (Быстрое обновление) Синхронизирует окружение с lock-файлом."
-	@echo "  make lock          - Обновляет lock-файл (requirements.lock.txt) на основе pyproject.toml."
-	@echo "  make update        - Обновляет lock-файл и сразу синхронизирует окружение."
-	@echo "\n--- Команды рабочего процесса ---"
-	@echo "  make collect       - Запускает сбор данных из Prometheus."
-	@echo "  make preprocess    - Запускает предобработку собранных данных."
-	@echo "  make train         - Запускает обучение модели."
-	@echo "  make detect        - Запускает real-time детектор аномалий."
-	@echo "\n--- Сборка и очистка ---"
-	@echo "  make build         - Собирает дистрибутивы пакета (wheel и sdist)."
-	@echo "  make clean         - Удаляет артефакты сборки, кэши и виртуальное окружение."
+	@echo "Available commands:"
+	@echo "\n  make setup-uv      - Checks and installs uv if it is missing."
+	@echo "  make install       - (Primary settings) Establishes uv, creates environment, and sets dependencies."
+	@echo "  make sync          - (Quick update) Synchronizes the environment with the lock file."
+	@echo "  make lock          - Updates the lock file (requirements.lock.txt) based on pyproject.toml."
+	@echo "  make update        - Updates the lock file and immediately synchronizes the environment."
+	@echo "\n--- Workflow teams ---"
+	@echo "  make collect       - It starts collecting data from Prometheus."
+	@echo "  make preprocess    - Starts pre-processing of collected data."
+	@echo "  make train         - Starts model training."
+	@echo "  make detect        - Starts a real-time anomaly detector."
+	@echo "\n--- Assembly and cleaning ---"
+	@echo "  make build         - Collects package distributions (wheel and sdist)."
+	@echo "  make clean         - Removes assembly artifacts, caches, and virtual environments."
 
-# Проверка и установка uv
+# Inspection and installation uv
 setup-uv:
-	@echo "⬇️  Проверка и установка uv..."
+	@echo "⬇️  Verification and installation of uv. ."
 	@if ! command -v uv &> /dev/null; then \
-		echo "uv не найден. Установка..."; \
+		echo "uv Not found. Installation. . ."; \
 		curl -LsSf https://astral.sh/uv/install.sh | sh; \
-		echo "‼️  Важно: Перезапустите ваш терминал или выполните 'source $$HOME/.cargo/env', чтобы команда uv стала доступна."; \
+		echo "‼️  Important: Restart your terminal or execute'source $$HOME/.cargo/env', I want the uv command to be available."; \
 	else \
-		echo "✅ uv уже установлен."; \
+		echo "✅ uv It's already set."; \
 	fi
 
-# Создание окружения, если его нет, и установка зависимостей
+# Creating an environment if there is none and setting dependencies
 install: setup-uv .venv/pyvenv.cfg requirements.lock.txt
-	@echo "📦 Установка зависимостей в окружение..."
+	@echo "📦 Installation of dependencies in the environment. . ."
 	$(UV) pip sync requirements.lock.txt
-	@echo "✅ Окружение готово и зависимости установлены. Активируйте его: source .venv/bin/activate"
+	@echo "✅ The environment is ready and the dependencies are set. Activate it: source.venv/bin/activate"
 
-# Явное создание виртуального окружения
-# Эта цель используется как зависимость для `install`
+# The explicit creation of a virtual environment
+# This purpose is used as a dependency for 'install'
 .venv/pyvenv.cfg:
-	@echo "🐍 Создание виртуального окружения .venv..."
+	@echo "🐍 Creating a virtual environment .venv. ."
 	$(UV) venv
 
-# Быстрая синхронизация с lock-файлом
+# Quick synchronization with the lock file
 sync:
-	@echo "🔄 Синхронизация окружения с requirements.lock.txt..."
+	@echo "🔄 Synchronization with requirements.lock.txt ."
 	$(UV) pip sync requirements.lock.txt
-	@echo "✅ Синхронизация завершена."
+	@echo "✅ Synchronization complete."
 
-# Обновление lock-файла после изменения pyproject.toml
+# Update the lock file after changing pyproject.toml
 lock:
-	@echo "🔒 Обновление requirements.lock.txt из pyproject.toml..."
+	@echo "🔒 Update requirements.lock.txt from pyproject.toml. . ."
 	$(UV) pip compile pyproject.toml --extra dev -o requirements.lock.txt
-	@echo "✅ Lock-файл обновлен."
+	@echo "✅ Lock-File updated."
 
-# Комбинация `lock` и `sync` для полного обновления
+# Combination of ‘lock’ and ‘sync’ for a full update
 update: lock sync
 
-# --- Команды рабочего процесса (используют cli.py) ---
+# --- Workflow teams (using cli.py)
 
 collect:
-	@echo "📊 Запуск сбора данных..."
+	@echo "📊 Start data collection. . ."
 	$(UV) run python cli.py collect
 
 preprocess:
-	@echo "🛠️  Запуск предобработки данных..."
+	@echo "🛠️  Starting data preprocessing. . ."
 	$(UV) run python cli.py preprocess
 
 train:
-	@echo "🎓 Запуск обучения модели..."
+	@echo "🎓 Start model training. . ."
 	$(UV) run python cli.py train
 
 detect:
-	@echo "📡 Запуск real-time детектора..."
+	@echo "📡 Running a real-time detector. . ."
 	$(UV) run python cli.py detect
 
-# --- Сборка и очистка ---
+# --- Assembly and cleaning ---
 
-# Сборка дистрибутивов
+# Assembly of distributions
 build:
-	@echo "📦 Сборка пакета..."
+	@echo "📦 Package assembly. . ."
 	$(UV) run python -m build
 
-# Удаление всех сгенерированных файлов
+# Delete all generated files
 clean:
-	@echo "🧹 Очистка проекта..."
+	@echo "🧹 Clean up the project. . ."
 	rm -rf .venv
 	rm -rf dist
 	rm -rf build
 	rm -rf .pytest_cache
 	rm -rf *.egg-info
 	find . -type d -name "__pycache__" -exec rm -r {} +
-	echo "✅ Очистка завершена."
+	echo "✅ Cleanup complete."
 
